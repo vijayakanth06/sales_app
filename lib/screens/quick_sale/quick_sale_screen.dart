@@ -5,6 +5,7 @@ import '../../l10n/app_localizations.dart';
 import '../../providers/providers.dart';
 import '../../models/models.dart';
 import '../../services/supabase_service.dart';
+import '../../services/weather_service.dart';
 
 class QuickSaleScreen extends ConsumerStatefulWidget {
   const QuickSaleScreen({super.key});
@@ -71,11 +72,24 @@ class _QuickSaleScreenState extends ConsumerState<QuickSaleScreen> {
         method = _otherMethodController.text.trim().isEmpty ? 'other' : _otherMethodController.text.trim();
       }
 
+      // Capture weather + location silently (non-blocking)
+      WeatherInfo? weather;
+      try {
+        weather = await WeatherService.getCurrentWeather();
+      } catch (_) {
+        // Silently ignore — don't block the sale
+      }
+
       final tx = SaleTransaction(
         id: '',
         type: 'quick',
         personId: null,
         groupId: null,
+        locationName: weather?.locationName,
+        gpsLat: weather?.lat,
+        gpsLong: weather?.lon,
+        weatherDesc: weather?.description,
+        weatherTemp: weather?.temperature,
         totalAmount: total,
         amountPaid: total,
         balance: 0,
