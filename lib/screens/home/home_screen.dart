@@ -4,13 +4,38 @@ import '../../l10n/app_localizations.dart';
 import 'package:intl/intl.dart';
 import '../../providers/providers.dart';
 import '../../models/models.dart';
+import '../../services/weather_service.dart';
 import '../calculate/calculate_screen.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  WeatherInfo? _weather;
+  bool _loadingWeather = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchWeather();
+  }
+
+  Future<void> _fetchWeather() async {
+    final weather = await WeatherService.getCurrentWeather();
+    if (mounted) {
+      setState(() {
+        _weather = weather;
+        _loadingWeather = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final todayTx = ref.watch(todayTransactionsProvider);
     final today = DateFormat('EEEE, dd MMM yyyy').format(DateTime.now());
@@ -18,6 +43,7 @@ class HomeScreen extends ConsumerWidget {
     return RefreshIndicator(
       onRefresh: () async {
         ref.invalidate(todayTransactionsProvider);
+        _fetchWeather();
       },
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -27,6 +53,10 @@ class HomeScreen extends ConsumerWidget {
           children: [
             // Date header
             Text(today, style: Theme.of(context).textTheme.headlineMedium),
+            const SizedBox(height: 8),
+
+            // Weather & Location row
+            _buildWeatherRow(),
             const SizedBox(height: 16),
 
             // Summary cards
@@ -131,6 +161,38 @@ class HomeScreen extends ConsumerWidget {
       ),
     );
   }
+
+  Widget _buildWeatherRow() {
+    if (_loadingWeather) {
+      return Row(
+        children: [
+          const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
+          const SizedBox(width: 8),
+          Text('Loading weather...', style: TextStyle(fontSize: 14, color: Colors.grey[500])),
+        ],
+      );
+    }
+    if (_weather == null) {
+      return Row(
+        children: [
+          Icon(Icons.cloud_off, size: 16, color: Colors.grey[400]),
+          const SizedBox(width: 6),
+          Text('Weather unavailable', style: TextStyle(fontSize: 14, color: Colors.grey[400])),
+        ],
+      );
+    }
+    return Row(
+      children: [
+        Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
+        const SizedBox(width: 4),
+        Text(_weather!.locationName, style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+        const SizedBox(width: 12),
+        Text('${_weather!.temperature.toStringAsFixed(1)}°C', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+        const SizedBox(width: 6),
+        Text(_weather!.description, style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+      ],
+    );
+  }
 }
 
 class _SummaryCard extends StatelessWidget {
@@ -155,7 +217,7 @@ class _SummaryCard extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           gradient: LinearGradient(
-            colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
+            colors: [color.withValues(alpha: 0.1), color.withValues(alpha: 0.05)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -219,7 +281,7 @@ class _TransactionCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.15),
+                color: statusColor.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(statusText,

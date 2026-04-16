@@ -80,6 +80,7 @@ void showPersonFormDialog(BuildContext context, WidgetRef ref, Person? existing,
   final ageController = TextEditingController(text: existing?.age?.toString() ?? '');
   final l10n = AppLocalizations.of(context)!;
   final isEdit = existing != null;
+  final formKey = GlobalKey<FormState>();
 
   showModalBottomSheet(
     context: context,
@@ -89,65 +90,95 @@ void showPersonFormDialog(BuildContext context, WidgetRef ref, Person? existing,
     ),
     builder: (context) => Padding(
       padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(isEdit ? '${l10n.btnEdit} ${l10n.labelPerson}' : l10n.btnAddPerson,
-              style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 16),
-          TextField(
-            controller: nameController,
-            decoration: InputDecoration(
-              labelText: '${l10n.labelPersonName} *',
-              border: const OutlineInputBorder(),
-            ),
-            style: const TextStyle(fontSize: 18),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: phoneController,
-            decoration: InputDecoration(
-              labelText: l10n.labelPhone,
-              border: const OutlineInputBorder(),
-            ),
-            keyboardType: TextInputType.phone,
-            style: const TextStyle(fontSize: 18),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: ageController,
-            decoration: InputDecoration(
-              labelText: l10n.labelAge,
-              border: const OutlineInputBorder(),
-            ),
-            keyboardType: TextInputType.number,
-            style: const TextStyle(fontSize: 18),
-          ),
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () async {
-                if (nameController.text.trim().isEmpty) return;
-                await SupabaseService().savePerson(Person(
-                  id: existing?.id ?? '',
-                  name: nameController.text.trim(),
-                  phone: phoneController.text.trim().isEmpty ? null : phoneController.text.trim(),
-                  age: ageController.text.trim().isEmpty ? null : int.tryParse(ageController.text.trim()),
-                  groupId: existing?.groupId ?? groupId,
-                ));
-                _invalidateAllPersonProviders(ref, groupId);
-                if (context.mounted) Navigator.pop(context);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                foregroundColor: Colors.white,
+      child: Form(
+        key: formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(isEdit ? '${l10n.btnEdit} ${l10n.labelPerson}' : l10n.btnAddPerson,
+                style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: nameController,
+              decoration: InputDecoration(
+                labelText: '${l10n.labelPersonName} *',
+                border: const OutlineInputBorder(),
               ),
-              child: Text(l10n.btnSave),
+              style: const TextStyle(fontSize: 18),
+              textCapitalization: TextCapitalization.words,
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) return 'Name is required';
+                if (value.trim().length < 2) return 'Name must be at least 2 characters';
+                if (!RegExp(r'^[a-zA-Z\s\.]+$').hasMatch(value.trim())) return 'Name can only contain letters';
+                return null;
+              },
             ),
-          ),
-        ],
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: phoneController,
+              decoration: InputDecoration(
+                labelText: l10n.labelPhone,
+                border: const OutlineInputBorder(),
+                hintText: '10 digit number',
+              ),
+              keyboardType: TextInputType.phone,
+              style: const TextStyle(fontSize: 18),
+              maxLength: 10,
+              validator: (value) {
+                if (value != null && value.trim().isNotEmpty) {
+                  if (!RegExp(r'^\d{10}$').hasMatch(value.trim())) {
+                    return 'Enter a valid 10-digit phone number';
+                  }
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: ageController,
+              decoration: InputDecoration(
+                labelText: l10n.labelAge,
+                border: const OutlineInputBorder(),
+                hintText: '1 - 120',
+              ),
+              keyboardType: TextInputType.number,
+              style: const TextStyle(fontSize: 18),
+              maxLength: 3,
+              validator: (value) {
+                if (value != null && value.trim().isNotEmpty) {
+                  final age = int.tryParse(value.trim());
+                  if (age == null) return 'Enter a valid number';
+                  if (age < 1 || age > 120) return 'Age must be between 1 and 120';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () async {
+                  if (!formKey.currentState!.validate()) return;
+                  await SupabaseService().savePerson(Person(
+                    id: existing?.id ?? '',
+                    name: nameController.text.trim(),
+                    phone: phoneController.text.trim().isEmpty ? null : phoneController.text.trim(),
+                    age: ageController.text.trim().isEmpty ? null : int.tryParse(ageController.text.trim()),
+                    groupId: existing?.groupId ?? groupId,
+                  ));
+                  _invalidateAllPersonProviders(ref, groupId);
+                  if (context.mounted) Navigator.pop(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Colors.white,
+                ),
+                child: Text(l10n.btnSave),
+              ),
+            ),
+          ],
+        ),
       ),
     ),
   );

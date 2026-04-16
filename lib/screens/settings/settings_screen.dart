@@ -156,6 +156,7 @@ class _ProductsSection extends ConsumerWidget {
     final sellingPriceController = TextEditingController();
     final costPriceController = TextEditingController();
     final l10n = AppLocalizations.of(context)!;
+    final formKey = GlobalKey<FormState>();
 
     showModalBottomSheet(
       context: context,
@@ -163,56 +164,79 @@ class _ProductsSection extends ConsumerWidget {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) => Padding(
         padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(l10n.btnAddProduct, style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 16),
-            TextField(
-              controller: nameController,
-              decoration: InputDecoration(labelText: '${l10n.labelProductName} *', border: const OutlineInputBorder()),
-              style: const TextStyle(fontSize: 18),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(child: TextField(
-                  controller: sellingPriceController,
-                  decoration: InputDecoration(labelText: l10n.labelSellingPrice, border: const OutlineInputBorder(), prefixText: '₹ '),
-                  keyboardType: TextInputType.number,
-                  style: const TextStyle(fontSize: 18),
-                )),
-                const SizedBox(width: 12),
-                Expanded(child: TextField(
-                  controller: costPriceController,
-                  decoration: InputDecoration(labelText: l10n.labelCostPrice, border: const OutlineInputBorder(), prefixText: '₹ '),
-                  keyboardType: TextInputType.number,
-                  style: const TextStyle(fontSize: 18),
-                )),
-              ],
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () async {
-                  final name = nameController.text.trim();
-                  final sell = double.tryParse(sellingPriceController.text);
-                  final cost = double.tryParse(costPriceController.text);
-                  if (name.isEmpty || sell == null || cost == null || sell <= 0 || cost <= 0) return;
-                  await SupabaseService().saveProduct(Product(id: '', name: name, sellingPrice: sell, costPrice: cost));
-                  ref.invalidate(productsProvider);
-                  if (context.mounted) Navigator.pop(context);
+        child: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(l10n.btnAddProduct, style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: nameController,
+                decoration: InputDecoration(labelText: '${l10n.labelProductName} *', border: const OutlineInputBorder()),
+                style: const TextStyle(fontSize: 18),
+                textCapitalization: TextCapitalization.words,
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Product name is required';
+                  if (v.trim().length < 2) return 'Name must be at least 2 characters';
+                  return null;
                 },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Colors.white,
-                ),
-                child: Text(l10n.btnSave),
               ),
-            ),
-          ],
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(child: TextFormField(
+                    controller: sellingPriceController,
+                    decoration: InputDecoration(labelText: '${l10n.labelSellingPrice} *', border: const OutlineInputBorder(), prefixText: '₹ '),
+                    keyboardType: TextInputType.number,
+                    style: const TextStyle(fontSize: 18),
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return 'Required';
+                      final val = double.tryParse(v.trim());
+                      if (val == null || val <= 0) return 'Must be > 0';
+                      return null;
+                    },
+                  )),
+                  const SizedBox(width: 12),
+                  Expanded(child: TextFormField(
+                    controller: costPriceController,
+                    decoration: InputDecoration(labelText: '${l10n.labelCostPrice} *', border: const OutlineInputBorder(), prefixText: '₹ '),
+                    keyboardType: TextInputType.number,
+                    style: const TextStyle(fontSize: 18),
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return 'Required';
+                      final val = double.tryParse(v.trim());
+                      if (val == null || val <= 0) return 'Must be > 0';
+                      return null;
+                    },
+                  )),
+                ],
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () async {
+                    if (!formKey.currentState!.validate()) return;
+                    await SupabaseService().saveProduct(Product(
+                      id: '',
+                      name: nameController.text.trim(),
+                      sellingPrice: double.parse(sellingPriceController.text.trim()),
+                      costPrice: double.parse(costPriceController.text.trim()),
+                    ));
+                    ref.invalidate(productsProvider);
+                    if (context.mounted) Navigator.pop(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: Text(l10n.btnSave),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -223,6 +247,7 @@ class _ProductsSection extends ConsumerWidget {
     final sellingPriceController = TextEditingController(text: product.sellingPrice.toStringAsFixed(0));
     final costPriceController = TextEditingController(text: product.costPrice.toStringAsFixed(0));
     final l10n = AppLocalizations.of(context)!;
+    final formKey = GlobalKey<FormState>();
 
     showModalBottomSheet(
       context: context,
@@ -230,62 +255,83 @@ class _ProductsSection extends ConsumerWidget {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) => Padding(
         padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(l10n.btnEdit, style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 16),
-            TextField(
-              controller: nameController,
-              decoration: InputDecoration(labelText: l10n.labelProductName, border: const OutlineInputBorder()),
-              style: const TextStyle(fontSize: 18),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(child: TextField(
-                  controller: sellingPriceController,
-                  decoration: InputDecoration(labelText: l10n.labelSellingPrice, border: const OutlineInputBorder(), prefixText: '₹ '),
-                  keyboardType: TextInputType.number,
-                  style: const TextStyle(fontSize: 18),
-                )),
-                const SizedBox(width: 12),
-                Expanded(child: TextField(
-                  controller: costPriceController,
-                  decoration: InputDecoration(labelText: l10n.labelCostPrice, border: const OutlineInputBorder(), prefixText: '₹ '),
-                  keyboardType: TextInputType.number,
-                  style: const TextStyle(fontSize: 18),
-                )),
-              ],
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () async {
-                  final name = nameController.text.trim();
-                  final sell = double.tryParse(sellingPriceController.text);
-                  final cost = double.tryParse(costPriceController.text);
-                  if (name.isEmpty || sell == null || cost == null) return;
-                  await SupabaseService().saveProduct(Product(
-                    id: product.id, name: name,
-                    sellingPrice: sell, costPrice: cost,
-                    active: product.active,
-                  ));
-                  ref.invalidate(productsProvider);
-                  if (context.mounted) Navigator.pop(context);
+        child: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(l10n.btnEdit, style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: nameController,
+                decoration: InputDecoration(labelText: l10n.labelProductName, border: const OutlineInputBorder()),
+                style: const TextStyle(fontSize: 18),
+                textCapitalization: TextCapitalization.words,
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Product name is required';
+                  if (v.trim().length < 2) return 'Name must be at least 2 characters';
+                  return null;
                 },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Colors.white,
-                ),
-                child: Text(l10n.btnSave),
               ),
-            ),
-          ],
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(child: TextFormField(
+                    controller: sellingPriceController,
+                    decoration: InputDecoration(labelText: l10n.labelSellingPrice, border: const OutlineInputBorder(), prefixText: '₹ '),
+                    keyboardType: TextInputType.number,
+                    style: const TextStyle(fontSize: 18),
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return 'Required';
+                      final val = double.tryParse(v.trim());
+                      if (val == null || val <= 0) return 'Must be > 0';
+                      return null;
+                    },
+                  )),
+                  const SizedBox(width: 12),
+                  Expanded(child: TextFormField(
+                    controller: costPriceController,
+                    decoration: InputDecoration(labelText: l10n.labelCostPrice, border: const OutlineInputBorder(), prefixText: '₹ '),
+                    keyboardType: TextInputType.number,
+                    style: const TextStyle(fontSize: 18),
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return 'Required';
+                      final val = double.tryParse(v.trim());
+                      if (val == null || val <= 0) return 'Must be > 0';
+                      return null;
+                    },
+                  )),
+                ],
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () async {
+                    if (!formKey.currentState!.validate()) return;
+                    await SupabaseService().saveProduct(Product(
+                      id: product.id,
+                      name: nameController.text.trim(),
+                      sellingPrice: double.parse(sellingPriceController.text.trim()),
+                      costPrice: double.parse(costPriceController.text.trim()),
+                      active: product.active,
+                    ));
+                    ref.invalidate(productsProvider);
+                    if (context.mounted) Navigator.pop(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: Text(l10n.btnSave),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
+

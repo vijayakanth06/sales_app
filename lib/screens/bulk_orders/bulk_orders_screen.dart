@@ -257,6 +257,7 @@ class BulkOrderFormScreen extends ConsumerStatefulWidget {
 }
 
 class _BulkOrderFormScreenState extends ConsumerState<BulkOrderFormScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
@@ -306,7 +307,7 @@ class _BulkOrderFormScreenState extends ConsumerState<BulkOrderFormScreen> {
   }
 
   Future<void> _save(List<Product> products) async {
-    if (_nameController.text.trim().isEmpty) return;
+    if (!_formKey.currentState!.validate()) return;
 
     if (_isEditing) {
       // For edit mode, we update the order details without requiring products
@@ -431,26 +432,41 @@ class _BulkOrderFormScreenState extends ConsumerState<BulkOrderFormScreen> {
       body: productsAsync.when(
         data: (products) => SingleChildScrollView(
           padding: const EdgeInsets.all(16),
-          child: Column(
+          child: Form(
+            key: _formKey,
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TextField(
+              TextFormField(
                 controller: _nameController,
                 decoration: InputDecoration(
                   labelText: '${l10n.labelCustomerName} *',
                   border: const OutlineInputBorder(),
                 ),
                 style: const TextStyle(fontSize: 18),
+                textCapitalization: TextCapitalization.words,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) return 'Customer name is required';
+                  if (value.trim().length < 2) return 'Name must be at least 2 characters';
+                  return null;
+                },
               ),
               const SizedBox(height: 12),
-              TextField(
+              TextFormField(
                 controller: _phoneController,
-                decoration: InputDecoration(labelText: l10n.labelPhone, border: const OutlineInputBorder()),
+                decoration: InputDecoration(labelText: l10n.labelPhone, border: const OutlineInputBorder(), hintText: '10 digit number'),
                 keyboardType: TextInputType.phone,
                 style: const TextStyle(fontSize: 18),
+                maxLength: 10,
+                validator: (value) {
+                  if (value != null && value.trim().isNotEmpty) {
+                    if (!RegExp(r'^\d{10}$').hasMatch(value.trim())) return 'Enter a valid 10-digit phone number';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 12),
-              TextField(
+              TextFormField(
                 controller: _addressController,
                 decoration: InputDecoration(labelText: l10n.labelDeliveryAddress, border: const OutlineInputBorder()),
                 style: const TextStyle(fontSize: 18),
@@ -610,6 +626,7 @@ class _BulkOrderFormScreenState extends ConsumerState<BulkOrderFormScreen> {
                 ),
               ),
             ],
+          ),
           ),
         ),
         loading: () => const Center(child: CircularProgressIndicator()),
