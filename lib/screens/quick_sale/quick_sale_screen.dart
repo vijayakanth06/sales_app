@@ -21,6 +21,9 @@ class _QuickSaleScreenState extends ConsumerState<QuickSaleScreen> {
   bool _saving = false;
   int _todayCount = 0;
   double _todayRevenue = 0;
+  bool _recordLocation = true;
+  bool _recordTimeNow = true;
+  DateTime _customDateTime = DateTime.now();
 
   @override
   void initState() {
@@ -72,19 +75,24 @@ class _QuickSaleScreenState extends ConsumerState<QuickSaleScreen> {
         method = _otherMethodController.text.trim().isEmpty ? 'other' : _otherMethodController.text.trim();
       }
 
-      // Capture weather + location silently (non-blocking)
+      // Capture weather + location only if user toggled ON
       WeatherInfo? weather;
-      try {
-        weather = await WeatherService.getCurrentWeather();
-      } catch (_) {
-        // Silently ignore — don't block the sale
+      if (_recordLocation) {
+        try {
+          weather = await WeatherService.getCurrentWeather();
+        } catch (_) {
+          // Silently ignore
+        }
       }
+
+      final saleTime = _recordTimeNow ? DateTime.now() : _customDateTime;
 
       final tx = SaleTransaction(
         id: '',
         type: 'quick',
         personId: null,
         groupId: null,
+        datetime: saleTime,
         locationName: weather?.locationName,
         gpsLat: weather?.lat,
         gpsLong: weather?.lon,
@@ -275,6 +283,113 @@ class _QuickSaleScreenState extends ConsumerState<QuickSaleScreen> {
                       onTap: () => setState(() => _paymentMethod = 'other')),
                   ],
                 ),
+
+                const SizedBox(height: 8),
+
+                // Location & Time toggle row
+                Row(
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        onTap: () => setState(() => _recordLocation = !_recordLocation),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: _recordLocation ? const Color(0xFF1565C0) : Colors.grey[200],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(_recordLocation ? Icons.location_on : Icons.location_off,
+                                size: 18, color: _recordLocation ? Colors.white : Colors.grey[600]),
+                              const SizedBox(width: 4),
+                              Text(_recordLocation ? '📍 ON' : '📍 OFF',
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
+                                  color: _recordLocation ? Colors.white : Colors.grey[600])),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: InkWell(
+                        onTap: () => setState(() {
+                          _recordTimeNow = !_recordTimeNow;
+                          if (!_recordTimeNow) _customDateTime = DateTime.now();
+                        }),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: _recordTimeNow ? const Color(0xFF1565C0) : Colors.grey[200],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(_recordTimeNow ? Icons.access_time_filled : Icons.edit_calendar,
+                                size: 18, color: _recordTimeNow ? Colors.white : Colors.grey[600]),
+                              const SizedBox(width: 4),
+                              Text(_recordTimeNow ? '🕐 NOW' : '🕐 Custom',
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
+                                  color: _recordTimeNow ? Colors.white : Colors.grey[600])),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                // Custom time picker
+                if (!_recordTimeNow) ...[
+                  const SizedBox(height: 8),
+                  InkWell(
+                    onTap: () async {
+                      if (!mounted) return;
+                      final date = await showDatePicker(
+                        context: context,
+                        initialDate: _customDateTime,
+                        firstDate: DateTime(2024),
+                        lastDate: DateTime.now(),
+                      );
+                      if (!mounted || date == null) return;
+                      
+                      final time = await showTimePicker(
+                        context: context,
+                        initialTime: TimeOfDay.fromDateTime(_customDateTime),
+                      );
+                      if (!mounted || time == null) return;
+                      
+                      setState(() {
+                        _customDateTime = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey[400]!),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.calendar_today, size: 18, color: Color(0xFF1565C0)),
+                          const SizedBox(width: 8),
+                          Text(
+                            '${_customDateTime.day}/${_customDateTime.month}/${_customDateTime.year}  '
+                            '${_customDateTime.hour.toString().padLeft(2, '0')}:${_customDateTime.minute.toString().padLeft(2, '0')}',
+                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                          ),
+                          const Spacer(),
+                          Text('Tap to change', style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
 
                 const SizedBox(height: 12),
                 SizedBox(

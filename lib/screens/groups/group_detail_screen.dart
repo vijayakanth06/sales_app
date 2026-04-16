@@ -293,8 +293,21 @@ void showPersonActions(BuildContext context, WidgetRef ref, Person person, {Grou
               onTap: () async {
                 Navigator.pop(ctx);
                 final oldGroupId = person.groupId;
-                await SupabaseService().updatePersonGroup(person.id, null);
-                _invalidateAllPersonProviders(ref, oldGroupId);
+                try {
+                  await SupabaseService().updatePersonGroup(person.id, null);
+                  _invalidateAllPersonProviders(ref, oldGroupId);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Person moved to individuals'), backgroundColor: Color(0xFF2E7D32)),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+                    );
+                  }
+                }
               },
             ),
           const Divider(),
@@ -319,15 +332,50 @@ void _confirmDeletePerson(BuildContext context, WidgetRef ref, Person person) {
     context: context,
     builder: (ctx) => AlertDialog(
       title: Text(l10n.msgConfirmDelete),
-      content: Text('Delete "${person.name}"? This cannot be undone.'),
+      content: Text('Delete "${person.name}"? This cannot be undone.\n\nIf this person has sales history, they will be deactivated instead.'),
       actions: [
         TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l10n.btnCancel)),
         TextButton(
           onPressed: () async {
             Navigator.pop(ctx);
             final groupId = person.groupId;
-            await SupabaseService().deletePerson(person.id);
-            _invalidateAllPersonProviders(ref, groupId);
+            try {
+              await SupabaseService().deletePerson(person.id);
+              _invalidateAllPersonProviders(ref, groupId);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Person deleted'), backgroundColor: Color(0xFF2E7D32)),
+                );
+              }
+            } catch (e) {
+              // FK constraint — person has transactions, deactivate instead
+              try {
+                await SupabaseService().savePerson(Person(
+                  id: person.id,
+                  name: person.name,
+                  phone: person.phone,
+                  age: person.age,
+                  groupId: person.groupId,
+                  active: false,
+                ));
+                _invalidateAllPersonProviders(ref, groupId);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Person has sales history — deactivated instead of deleted'),
+                      backgroundColor: Color(0xFFE65100),
+                      duration: Duration(seconds: 4),
+                    ),
+                  );
+                }
+              } catch (e2) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: $e2'), backgroundColor: Colors.red),
+                  );
+                }
+              }
+            }
           },
           child: Text(l10n.btnDelete, style: const TextStyle(color: Color(0xFFC62828))),
         ),

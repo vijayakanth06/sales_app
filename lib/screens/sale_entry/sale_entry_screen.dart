@@ -25,6 +25,28 @@ class _SaleEntryScreenState extends ConsumerState<SaleEntryScreen> {
   final _notesController = TextEditingController();
   final _otherMethodController = TextEditingController();
   bool _saving = false;
+  bool _recordLocation = true;
+  bool _recordTimeNow = true;
+  DateTime _customDateTime = DateTime.now();
+
+  Future<void> _pickDateTime() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _customDateTime,
+      firstDate: DateTime(2024),
+      lastDate: DateTime.now(),
+    );
+    if (!mounted || date == null) return;
+    
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_customDateTime),
+    );
+    if (!mounted || time == null) return;
+    setState(() {
+      _customDateTime = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    });
+  }
 
   @override
   void dispose() {
@@ -74,19 +96,25 @@ class _SaleEntryScreenState extends ConsumerState<SaleEntryScreen> {
         method = _otherMethodController.text.trim().isEmpty ? 'other' : _otherMethodController.text.trim();
       }
 
-      // Capture weather + location silently (non-blocking)
+      // Capture weather + location only if user toggled ON
       WeatherInfo? weather;
-      try {
-        weather = await WeatherService.getCurrentWeather();
-      } catch (_) {
-        // Silently ignore — don't block the sale
+      if (_recordLocation) {
+        try {
+          weather = await WeatherService.getCurrentWeather();
+        } catch (_) {
+          // Silently ignore — don't block the sale
+        }
       }
+
+      // Use current time or user-picked custom time
+      final saleTime = _recordTimeNow ? DateTime.now() : _customDateTime;
 
       final tx = SaleTransaction(
         id: '',
         type: widget.group != null ? 'group' : 'individual',
         personId: widget.person.id,
         groupId: widget.group?.id,
+        datetime: saleTime,
         locationName: weather?.locationName,
         gpsLat: weather?.lat,
         gpsLong: weather?.lon,
@@ -351,6 +379,94 @@ class _SaleEntryScreenState extends ConsumerState<SaleEntryScreen> {
                         style: const TextStyle(fontSize: 16),
                       ),
                     ],
+                  ],
+
+                  const SizedBox(height: 12),
+
+                  // Location & Time toggle row
+                  Row(
+                    children: [
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => setState(() => _recordLocation = !_recordLocation),
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: _recordLocation ? const Color(0xFF1565C0) : Colors.grey[200],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(_recordLocation ? Icons.location_on : Icons.location_off,
+                                  size: 18, color: _recordLocation ? Colors.white : Colors.grey[600]),
+                                const SizedBox(width: 4),
+                                Text(_recordLocation ? '📍 Location ON' : '📍 Location OFF',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
+                                    color: _recordLocation ? Colors.white : Colors.grey[600])),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => setState(() {
+                            _recordTimeNow = !_recordTimeNow;
+                            if (!_recordTimeNow) _customDateTime = DateTime.now();
+                          }),
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: _recordTimeNow ? const Color(0xFF1565C0) : Colors.grey[200],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(_recordTimeNow ? Icons.access_time_filled : Icons.edit_calendar,
+                                  size: 18, color: _recordTimeNow ? Colors.white : Colors.grey[600]),
+                                const SizedBox(width: 4),
+                                Text(_recordTimeNow ? '🕐 Time NOW' : '🕐 Custom Time',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
+                                    color: _recordTimeNow ? Colors.white : Colors.grey[600])),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // Custom time picker when Record Time is OFF
+                  if (!_recordTimeNow) ...[
+                    const SizedBox(height: 8),
+                    InkWell(
+                      onTap: _pickDateTime,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey[400]!),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.calendar_today, size: 20, color: Color(0xFF1565C0)),
+                            const SizedBox(width: 12),
+                            Text(
+                              '${_customDateTime.day}/${_customDateTime.month}/${_customDateTime.year}  '
+                              '${_customDateTime.hour.toString().padLeft(2, '0')}:${_customDateTime.minute.toString().padLeft(2, '0')}',
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                            ),
+                            const Spacer(),
+                            Text('Tap to change', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                          ],
+                        ),
+                      ),
+                    ),
                   ],
 
                   const SizedBox(height: 12),

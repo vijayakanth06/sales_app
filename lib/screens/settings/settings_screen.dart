@@ -135,14 +135,48 @@ class _ProductsSection extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(l10n.msgConfirmDelete),
-        content: Text('Delete "${product.name}"? This cannot be undone.'),
+        content: Text('Delete "${product.name}"? This cannot be undone.\n\nIf this product has been used in sales, it will be deactivated instead.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l10n.btnCancel)),
           TextButton(
             onPressed: () async {
               Navigator.pop(ctx);
-              await SupabaseService().deleteProduct(product.id);
-              ref.invalidate(productsProvider);
+              try {
+                await SupabaseService().deleteProduct(product.id);
+                ref.invalidate(productsProvider);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Product deleted'), backgroundColor: Color(0xFF2E7D32)),
+                  );
+                }
+              } catch (e) {
+                // FK constraint — product is used in transactions, deactivate instead
+                try {
+                  await SupabaseService().saveProduct(Product(
+                    id: product.id,
+                    name: product.name,
+                    sellingPrice: product.sellingPrice,
+                    costPrice: product.costPrice,
+                    active: false,
+                  ));
+                  ref.invalidate(productsProvider);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Product has sales history — deactivated instead of deleted'),
+                        backgroundColor: Color(0xFFE65100),
+                        duration: Duration(seconds: 4),
+                      ),
+                    );
+                  }
+                } catch (e2) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error: $e2'), backgroundColor: Colors.red),
+                    );
+                  }
+                }
+              }
             },
             child: Text(l10n.btnDelete, style: const TextStyle(color: Color(0xFFC62828))),
           ),

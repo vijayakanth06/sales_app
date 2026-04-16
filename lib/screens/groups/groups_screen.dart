@@ -269,9 +269,22 @@ class _GroupCard extends ConsumerWidget {
           TextButton(
             onPressed: () async {
               Navigator.pop(ctx);
-              await SupabaseService().deleteGroup(group.id);
-              ref.invalidate(groupsProvider);
-              ref.invalidate(individualsProvider);
+              try {
+                await SupabaseService().deleteGroup(group.id);
+                ref.invalidate(groupsProvider);
+                ref.invalidate(individualsProvider);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Group deleted'), backgroundColor: Color(0xFF2E7D32)),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error deleting group: $e'), backgroundColor: Colors.red),
+                  );
+                }
+              }
             },
             child: Text(l10n.btnDelete, style: const TextStyle(color: Color(0xFFC62828))),
           ),

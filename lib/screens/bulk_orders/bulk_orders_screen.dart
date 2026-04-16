@@ -232,12 +232,20 @@ class _BulkOrderCard extends ConsumerWidget {
           TextButton(
             onPressed: () async {
               Navigator.pop(ctx);
-              await SupabaseService().deleteBulkOrder(order.id);
-              ref.invalidate(bulkOrdersProvider);
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Deleted'), backgroundColor: Color(0xFFC62828)),
-                );
+              try {
+                await SupabaseService().deleteBulkOrder(order.id);
+                ref.invalidate(bulkOrdersProvider);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Deleted'), backgroundColor: Color(0xFFC62828)),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error deleting: $e'), backgroundColor: Colors.red),
+                  );
+                }
               }
             },
             child: Text(l10n.btnDelete, style: const TextStyle(color: Color(0xFFC62828))),
