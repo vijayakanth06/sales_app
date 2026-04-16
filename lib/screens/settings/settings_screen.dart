@@ -210,7 +210,6 @@ class _ProductsSection extends ConsumerWidget {
                 controller: nameController,
                 decoration: InputDecoration(labelText: '${l10n.labelProductName} *', border: const OutlineInputBorder()),
                 style: const TextStyle(fontSize: 18),
-                textCapitalization: TextCapitalization.words,
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) return 'Product name is required';
                   if (v.trim().length < 2) return 'Name must be at least 2 characters';
@@ -301,7 +300,6 @@ class _ProductsSection extends ConsumerWidget {
                 controller: nameController,
                 decoration: InputDecoration(labelText: l10n.labelProductName, border: const OutlineInputBorder()),
                 style: const TextStyle(fontSize: 18),
-                textCapitalization: TextCapitalization.words,
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) return 'Product name is required';
                   if (v.trim().length < 2) return 'Name must be at least 2 characters';

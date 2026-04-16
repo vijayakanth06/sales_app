@@ -106,11 +106,9 @@ void showPersonFormDialog(BuildContext context, WidgetRef ref, Person? existing,
                 border: const OutlineInputBorder(),
               ),
               style: const TextStyle(fontSize: 18),
-              textCapitalization: TextCapitalization.words,
               validator: (value) {
                 if (value == null || value.trim().isEmpty) return 'Name is required';
                 if (value.trim().length < 2) return 'Name must be at least 2 characters';
-                if (!RegExp(r'^[a-zA-Z\s\.]+$').hasMatch(value.trim())) return 'Name can only contain letters';
                 return null;
               },
             ),

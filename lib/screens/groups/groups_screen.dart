@@ -75,6 +75,7 @@ class GroupsScreen extends ConsumerWidget {
     String selectedType = existing?.type ?? 'factory';
     final l10n = AppLocalizations.of(context)!;
     final isEdit = existing != null;
+    final formKey = GlobalKey<FormState>();
 
     showModalBottomSheet(
       context: context,
@@ -84,20 +85,27 @@ class GroupsScreen extends ConsumerWidget {
       ),
       builder: (context) => Padding(
         padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(isEdit ? '${l10n.btnEdit} ${l10n.labelGroup}' : l10n.btnAddGroup,
                 style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 16),
-            TextField(
+            TextFormField(
               controller: nameController,
               decoration: InputDecoration(
                 labelText: '${l10n.labelGroupName} *',
                 border: const OutlineInputBorder(),
               ),
               style: const TextStyle(fontSize: 18),
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) return 'Group name is required';
+                if (v.trim().length < 2) return 'Name must be at least 2 characters';
+                return null;
+              },
             ),
             const SizedBox(height: 16),
             StatefulBuilder(builder: (context, setState) {
@@ -118,7 +126,7 @@ class GroupsScreen extends ConsumerWidget {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () async {
-                  if (nameController.text.trim().isEmpty) return;
+                  if (!formKey.currentState!.validate()) return;
                   await SupabaseService().saveGroup(Group(
                     id: existing?.id ?? '',
                     name: nameController.text.trim(),
@@ -136,6 +144,7 @@ class GroupsScreen extends ConsumerWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }

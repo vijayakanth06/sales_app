@@ -452,7 +452,6 @@ class _BulkOrderFormScreenState extends ConsumerState<BulkOrderFormScreen> {
                   border: const OutlineInputBorder(),
                 ),
                 style: const TextStyle(fontSize: 18),
-                textCapitalization: TextCapitalization.words,
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) return 'Customer name is required';
                   if (value.trim().length < 2) return 'Name must be at least 2 characters';
