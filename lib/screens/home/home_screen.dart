@@ -15,35 +15,17 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  WeatherInfo? _weather;
-  bool _loadingWeather = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchWeather();
-  }
-
-  Future<void> _fetchWeather() async {
-    final weather = await WeatherService.getCurrentWeather();
-    if (mounted) {
-      setState(() {
-        _weather = weather;
-        _loadingWeather = false;
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final todayTx = ref.watch(todayTransactionsProvider);
+    final weatherAsync = ref.watch(weatherProvider);
     final today = DateFormat('EEEE, dd MMM yyyy').format(DateTime.now());
 
     return RefreshIndicator(
       onRefresh: () async {
         ref.invalidate(todayTransactionsProvider);
-        _fetchWeather();
+        await ref.read(weatherProvider.notifier).refresh();
       },
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -56,7 +38,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             const SizedBox(height: 8),
 
             // Weather & Location row
-            _buildWeatherRow(),
+            _buildWeatherRow(weatherAsync),
             const SizedBox(height: 16),
 
             // Summary cards
@@ -146,7 +128,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                       )
                     else
-                      ...transactions.map((tx) => _TransactionCard(tx: tx)),
+                      ListView.builder(
+                        physics: const NeverScrollableScrollPhysics(),
+                        shrinkWrap: true,
+                        itemCount: transactions.length,
+                        itemBuilder: (context, index) => _TransactionCard(tx: transactions[index]),
+                      ),
                   ],
                 );
               },
@@ -162,35 +149,44 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildWeatherRow() {
-    if (_loadingWeather) {
-      return Row(
+  Widget _buildWeatherRow(AsyncValue<WeatherInfo?> weatherAsync) {
+    return weatherAsync.when(
+      data: (weather) {
+        if (weather == null) {
+          return Row(
+            children: [
+              Icon(Icons.cloud_off, size: 16, color: Colors.grey[400]),
+              const SizedBox(width: 6),
+              Text('Weather unavailable', style: TextStyle(fontSize: 14, color: Colors.grey[400])),
+            ],
+          );
+        }
+        return Row(
+          children: [
+            Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
+            const SizedBox(width: 4),
+            Text(weather.locationName, style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+            const SizedBox(width: 12),
+            Text('${weather.temperature.toStringAsFixed(1)}°C', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+            const SizedBox(width: 6),
+            Text(weather.description, style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+          ],
+        );
+      },
+      loading: () => Row(
         children: [
           const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
           const SizedBox(width: 8),
           Text('Loading weather...', style: TextStyle(fontSize: 14, color: Colors.grey[500])),
         ],
-      );
-    }
-    if (_weather == null) {
-      return Row(
+      ),
+      error: (err, stack) => Row(
         children: [
           Icon(Icons.cloud_off, size: 16, color: Colors.grey[400]),
           const SizedBox(width: 6),
-          Text('Weather unavailable', style: TextStyle(fontSize: 14, color: Colors.grey[400])),
+          Text('Weather error', style: TextStyle(fontSize: 14, color: Colors.grey[400])),
         ],
-      );
-    }
-    return Row(
-      children: [
-        Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
-        const SizedBox(width: 4),
-        Text(_weather!.locationName, style: TextStyle(fontSize: 14, color: Colors.grey[600])),
-        const SizedBox(width: 12),
-        Text('${_weather!.temperature.toStringAsFixed(1)}°C', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-        const SizedBox(width: 6),
-        Text(_weather!.description, style: TextStyle(fontSize: 14, color: Colors.grey[600])),
-      ],
+      ),
     );
   }
 }

@@ -29,7 +29,7 @@ class HomeSalesApp extends ConsumerWidget {
     final lang = ref.watch(languageProvider);
 
     return MaterialApp(
-      title: 'HomeSales Tracker',
+      title: 'என் கணக்கு',
       debugShowCheckedModeBanner: false,
       locale: Locale(lang),
       localizationsDelegates: const [
